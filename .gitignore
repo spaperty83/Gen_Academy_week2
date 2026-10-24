@@ -1,0 +1,21 @@
+.venv/
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+data/
+.streamlit/secrets.toml
+*.egg-info/
+
+# Generated documents and temporary render files
+output/
+tmp/
+
+# Local assistant tooling and machine-specific credentials
+.agents/
+.claude/
+.codex/
+.aws/
