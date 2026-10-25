@@ -5,7 +5,7 @@ from unittest.mock import Mock
 import pytest
 
 from park_rag.config import Settings
-from park_rag.qa import FALLBACK, Claim, EvidenceAnswer, ParkAssistant, load_active, retrieve, validate_answer
+from park_rag.qa import FALLBACK, Claim, EvidenceAnswer, ParkAssistant, load_active, validate_answer
 
 URL = "https://www.nps.gov/yell/planyourvisit/pets.htm"
 EVIDENCE = [{"source_id": "S1", "title": "Pets", "url": URL,
@@ -33,27 +33,14 @@ def test_unsupported_output_never_displays_model_claims():
     assert validate_answer(output, EVIDENCE).text == FALLBACK
 
 
-def test_retrieval_filters_active_namespace_and_approved_urls():
-    index, embeddings = Mock(), Mock()
-    embeddings.embed_query.return_value = [0.2, 0.4]
-    index.query.return_value = SimpleNamespace(matches=[
-        SimpleNamespace(id="one", metadata={"text": "Evidence", "title": "Pets", "source_url": URL,
-                                              "collected_at": "now"}),
-        SimpleNamespace(id="two", metadata={"text": "Wrong", "source_url": "https://example.com"}),
-    ])
-    result = retrieve(index, embeddings, {"namespace": "yell-active", "sources": [{"source_url": URL}]},
-                      "Pet rules?", 5)
-    assert len(result) == 1
-    assert index.query.call_args.kwargs["namespace"] == "yell-active"
-    assert index.query.call_args.kwargs["filter"] == {"park_code": {"$eq": "yell"}}
-
-
 def assistant_with_empty_index():
     assistant = ParkAssistant.__new__(ParkAssistant)
     assistant.settings = Settings()
     assistant.snapshot = {"namespace": "yell-active", "sources": [{"source_url": URL}]}
     assistant.index, assistant.embeddings, assistant.chain = Mock(), Mock(), Mock()
-    assistant.index.query.return_value = SimpleNamespace(matches=[])
+    assistant.index.sparse.return_value = []
+    assistant.index.dense.return_value = []
+    assistant.graph = assistant.build_graph()
     return assistant
 
 
@@ -81,5 +68,33 @@ def test_settings_mismatch_requires_reingestion(tmp_path, monkeypatch):
 
 
 def test_keys_not_in_settings_repr():
-    settings = Settings(openai_api_key="private-one", pinecone_api_key="private-two")
+    settings = Settings(openai_api_key="private-one")
     assert "private" not in repr(settings)
+
+
+def test_graph_retrieves_and_generates_cited_answer():
+    from park_rag.store import LocalIndex
+    assistant = ParkAssistant.__new__(ParkAssistant)
+    assistant.settings = Settings(top_k=2)
+    assistant.snapshot = {"sources": [{"source_url": URL}]}
+    remote = Mock()
+    remote.query.return_value = SimpleNamespace(matches=[SimpleNamespace(id="one")])
+    assistant.index = LocalIndex([{"chunk_id": "one", "park_code": "yell", "park_name": "Yellowstone",
+                                  "title": "Pets", "source_url": URL, "collected_at": "now",
+                                  "text": "Pets must be leashed.", "vector": [1., 0.]}], remote, "active")
+    assistant.embeddings = Mock()
+    assistant.embeddings.embed_query.return_value = [1., 0.]
+    assistant.chain = Mock()
+    assistant.chain.invoke.return_value = EvidenceAnswer(status="supported", claims=[
+        Claim(text="Pets must be leashed.", source_ids=["S1"])], gap="")
+    assistant.graph = assistant.build_graph()
+    result = assistant.ask("Yellowstone pets?")
+    assert result.status == "supported"
+    assert result.sources[0]["park_code"] == "yell"
+    assert assistant.chain.invoke.call_count == 1
+
+
+def test_question_routes_multiple_parks():
+    from park_rag.qa import question_parks
+    assert question_parks("Compare Shenandoah and Great Smoky Mountains") == ["shen", "grsm"]
+    assert question_parks("Pet rules?") == []

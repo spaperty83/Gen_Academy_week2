@@ -6,7 +6,7 @@ from pathlib import Path
 from .config import ROOT, Settings
 from .corpus import collect, corpus_version, read_sources, save_json, split_pages
 from .diagnostics import describe_failure, step
-from .store import connect_index, make_embeddings, upsert_chunks, wait_for_records
+from .store import build_index, connect_index, make_embeddings
 
 
 def run(settings, sources, *, preview=False):
@@ -21,7 +21,8 @@ def run(settings, sources, *, preview=False):
         chunks = split_pages(pages, settings.chunk_size, settings.chunk_overlap)
     version = corpus_version(chunks, settings.embedding_model, settings.embedding_dimension)
     snapshot = {
-        "park_code": "yell", "namespace": f"yell-{version}", "corpus_version": version,
+        "park_codes": sorted({p.metadata["park_code"] for p in pages}),
+        "namespace": f"parks-{version}", "corpus_version": version, "retrieval_backend": "pinecone-hybrid-v1",
         "index_name": settings.index_name, "embedding_model": settings.embedding_model,
         "embedding_dimension": settings.embedding_dimension,
         "page_count": len(pages), "chunk_count": len(chunks),
@@ -37,10 +38,11 @@ def run(settings, sources, *, preview=False):
         index = connect_index(settings, create=True)
     with step("configuring embedding model"):
         embeddings = make_embeddings(settings)
-    with step("embedding and storing passages"):
-        upsert_chunks(index, embeddings, chunks, snapshot["namespace"])
-    with step("verifying Pinecone records"):
-        wait_for_records(index, chunks, snapshot["namespace"])
+    index_path = ROOT / "data" / "indexes" / f"{version}.json"
+    with step("embedding and storing Pinecone passages"):
+        build_index(embeddings, chunks, settings.embedding_dimension, index_path,
+                    index=index, namespace=snapshot["namespace"])
+    snapshot["index_file"] = f"indexes/{version}.json"
     with step("publishing active corpus"):
         save_json(ROOT / "data" / "active.json", snapshot)
     print(f"Published {len(chunks)} chunks from {len(pages)} pages. Namespace: {snapshot['namespace']}")
@@ -51,7 +53,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sources", type=Path,
                         default=ROOT / "config" / "sources.json")
-    parser.add_argument("--preview", action="store_true", help="Collect and split without API keys or writes to Pinecone")
+    parser.add_argument("--preview", action="store_true", help="Collect and split without API keys or embedding API calls")
     args = parser.parse_args()
     try:
         with step("loading settings"):

@@ -19,7 +19,7 @@ def page(timestamp="2026-10-23T12:00:00+00:00"):
 @pytest.mark.parametrize("url", [
     "http://www.nps.gov/yell/planyourvisit/pets.htm",
     "https://www.nps.gov.evil.example/yell/pets.htm",
-    "https://www.nps.gov/shen/planyourvisit/pets.htm",
+    "https://www.nps.gov/other/planyourvisit/pets.htm",
     "https://www.nps.gov/yell/pets.htm?redirect=example.com",
     "https://www.nps.gov/yell/pets.htm#fragment",
 ])
@@ -61,3 +61,10 @@ def test_duplicate_manifest_rejected(tmp_path):
 def test_empty_extraction_rejected():
     with pytest.raises(ValueError):
         extract_page('<main><h1>Pets</h1><p>Empty</p></main>', URL, 'now')
+
+
+@pytest.mark.parametrize("code", ["yell", "shen", "grsm"])
+def test_each_park_metadata(code):
+    result = extract_page('<main><h1>Pets</h1><p>' + 'Pet guidance. ' * 30 + '</p></main>',
+                          f'https://www.nps.gov/{code}/planyourvisit/pets.htm', 'now')
+    assert result.metadata['park_code'] == code

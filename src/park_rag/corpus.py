@@ -13,23 +13,22 @@ from bs4 import BeautifulSoup
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-USER_AGENT = "YellowstoneLearningRAG/0.1"
+PARKS = {"yell": "Yellowstone", "shen": "Shenandoah", "grsm": "Great Smoky Mountains"}
+USER_AGENT = "NationalParksLearningRAG/0.2"
 
 
 def canonical_url(url: str) -> str:
     parts = urlsplit(url)
     if (parts.scheme != "https" or parts.netloc.lower() != "www.nps.gov"
-            or not parts.path.startswith("/yell/") or not parts.path.endswith(".htm")
+            or parts.path.split("/")[1] not in PARKS or not parts.path.endswith(".htm")
             or parts.query or parts.fragment
             or any(p in {".", ".."} for p in unquote(parts.path).split("/"))):
-        raise ValueError("Sources must be explicit https://www.nps.gov/yell/*.htm pages.")
+        raise ValueError("Sources must be explicit NPS .htm pages for yell, shen or grsm.")
     return "https://www.nps.gov" + parts.path
 
 
 def read_sources(path: Path) -> list[str]:
     manifest = json.loads(path.read_text(encoding="utf-8"))
-    if manifest.get("park_code") != "yell":
-        raise ValueError("This version supports Yellowstone (yell) only.")
     urls = [canonical_url(row["url"]) for row in manifest["sources"]]
     if not urls or len(urls) != len(set(urls)):
         raise ValueError("Source manifest must contain a nonempty list of unique URLs.")
@@ -57,7 +56,8 @@ def extract_page(html: str, url: str, collected_at: str) -> Document:
         raise ValueError(f"Suspiciously short extracted page: {url}")
     return Document(page_content=text, metadata={
         "document_id": hashlib.sha256(url.encode()).hexdigest()[:24],
-        "title": title, "source_url": canonical_url(url), "park_code": "yell",
+        "title": title, "source_url": canonical_url(url), "park_code": urlsplit(url).path.split("/")[1],
+        "park_name": PARKS[urlsplit(url).path.split("/")[1]],
         "collected_at": collected_at,
     })
 

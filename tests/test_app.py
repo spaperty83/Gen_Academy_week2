@@ -7,7 +7,7 @@ def test_app_startup_without_credentials(monkeypatch):
     monkeypatch.setattr(Settings, "load", classmethod(lambda cls: Settings()))
     app = AppTest.from_file(str(ROOT / "app.py")).run(timeout=15)
     assert not app.exception
-    assert app.title[0].value == "Yellowstone NPS Assistant"
+    assert app.title[0].value == "National parks NPS assistant"
     assert "OPENAI_API_KEY" in app.warning[0].value
 
 

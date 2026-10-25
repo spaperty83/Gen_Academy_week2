@@ -1,5 +1,4 @@
 {
-  "park_code": "yell",
   "sources": [
     {
       "url": "https://www.nps.gov/yell/planyourvisit/safety.htm"
@@ -9,6 +8,29 @@
     },
     {
       "url": "https://www.nps.gov/yell/planyourvisit/hiking.htm"
+    },
+    {
+      "url": "https://www.nps.gov/shen/planyourvisit/safety.htm"
+    },
+    {
+      "url": "https://www.nps.gov/shen/planyourvisit/pets.htm"
+    },
+    {
+      "url": "https://www.nps.gov/shen/planyourvisit/hiking-basics.htm"
+    },
+    {
+      "url": "https://www.nps.gov/grsm/planyourvisit/safety.htm"
+    },
+    {
+      "url": "https://www.nps.gov/grsm/planyourvisit/pets.htm"
+    },
+    {
+      "url": "https://www.nps.gov/grsm/planyourvisit/hiking.htm"
     }
+  ],
+  "park_codes": [
+    "yell",
+    "shen",
+    "grsm"
   ]
 }

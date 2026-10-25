@@ -12,12 +12,12 @@ ROOT = Path(__file__).resolve().parents[2]
 class Settings:
     openai_api_key: str = field(default="", repr=False)
     pinecone_api_key: str = field(default="", repr=False)
+    index_name: str = "national-parks-rag"
+    cloud: str = "aws"
+    region: str = "us-east-1"
     chat_model: str = "gpt-4.1-mini"
     embedding_model: str = "text-embedding-3-small"
     embedding_dimension: int = 1536
-    index_name: str = "yellowstone-rag"
-    cloud: str = "aws"
-    region: str = "us-east-1"
     top_k: int = 5
     chunk_size: int = 1800
     chunk_overlap: int = 250
@@ -34,12 +34,12 @@ class Settings:
         return cls(
             openai_api_key=os.getenv("OPENAI_API_KEY", ""),
             pinecone_api_key=os.getenv("PINECONE_API_KEY", ""),
+            index_name=os.getenv("PINECONE_INDEX", "national-parks-rag"),
+            cloud=os.getenv("PINECONE_CLOUD", "aws"),
+            region=os.getenv("PINECONE_REGION", "us-east-1"),
             chat_model=os.getenv("CHAT_MODEL", "gpt-4.1-mini"),
             embedding_model=os.getenv("EMBEDDING_MODEL", "text-embedding-3-small"),
             embedding_dimension=int(os.getenv("EMBEDDING_DIMENSION", "1536")),
-            index_name=os.getenv("PINECONE_INDEX", "yellowstone-rag"),
-            cloud=os.getenv("PINECONE_CLOUD", "aws"),
-            region=os.getenv("PINECONE_REGION", "us-east-1"),
             top_k=int(os.getenv("TOP_K", "5")),
             chunk_size=int(os.getenv("CHUNK_SIZE", "1800")),
             chunk_overlap=int(os.getenv("CHUNK_OVERLAP", "250")),
